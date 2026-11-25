@@ -253,6 +253,8 @@ def _run_think_loop(store, system_prompt: str, *, human_name: str, session_secon
     human_name = (human_name or "You").strip() or "You"
     last_seen = int(store.get_state("last_seen_message_id") or 0)
     # Captured before the call so a message that arrives mid-tick stays unseen.
+    # That reply can land a higher id than the message. build_llm_messages
+    # moves the unseen message after the reply so the next tick still ends on it.
     start_latest = store.latest_message_id()
 
     unseen = store.unseen_human(last_seen, limit=80)

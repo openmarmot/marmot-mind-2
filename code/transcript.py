@@ -11,6 +11,27 @@ from clock import format_local, utcnow
 from images import prepare_for_model
 
 
+def place_unseen_last(transcript: list, unseen_ids: set) -> list:
+    """Put human messages the mind has not answered after everything else.
+
+    A message that arrives during a tick keeps a lower id than the reply
+    that tick posts. Id order would then end on that reply, and the next
+    tick would look already answered. Those messages have to be the last
+    turns so the mind still replies to them.
+    """
+    unseen_ids = {int(i) for i in (unseen_ids or set())}
+    if not unseen_ids:
+        return list(transcript or [])
+    answered = []
+    pending = []
+    for msg in transcript or []:
+        if int(msg["id"]) in unseen_ids and msg.get("author") != "mind":
+            pending.append(msg)
+        else:
+            answered.append(msg)
+    return answered + pending
+
+
 def choose_transcript(recent: list, unseen_human: list, limit: int = 48) -> tuple[list, bool]:
     """Merge recent messages with unseen human ones, oldest first.
 
@@ -99,7 +120,7 @@ def build_llm_messages(
         system = f"{system}\n\n{extra}" if system else extra
     out = [{"role": "system", "content": system}]
     unseen_ids = {int(i) for i in (unseen_ids or set())}
-    for msg in transcript or []:
+    for msg in place_unseen_last(transcript, unseen_ids):
         vision = int(msg["id"]) in unseen_ids and msg.get("author") == "human"
         out.append(message_to_llm(msg, vision=vision, human_name=human_name))
     if wake_line:

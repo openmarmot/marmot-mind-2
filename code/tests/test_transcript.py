@@ -6,7 +6,13 @@ from datetime import datetime
 from clock import display_zone, format_duration, format_local, prompt_clock_line, zone_name
 from tools import get_tools
 from tools.mind_tools import resolve_next_wake
-from transcript import build_llm_messages, choose_transcript, render_for_model, runtime_wake_line
+from transcript import (
+    build_llm_messages,
+    choose_transcript,
+    place_unseen_last,
+    render_for_model,
+    runtime_wake_line,
+)
 
 
 def _msg(mid, author, text, created_at="2026-10-18T18:00:00+00:00", attachments=None):
@@ -41,6 +47,40 @@ class TranscriptTests(unittest.TestCase):
         chosen, trimmed = choose_transcript(recent, [recent[0]], limit=10)
         self.assertFalse(trimmed)
         self.assertEqual([m["id"] for m in chosen], [1, 2])
+
+    def test_mid_tick_message_is_placed_after_the_reply(self):
+        # Message 2 arrived while the mind was answering message 1, so the
+        # reply (id 3) has a higher id but did not see message 2.
+        transcript = [
+            _msg(1, "human", "hi"),
+            _msg(2, "human", "swapped your brain"),
+            _msg(3, "mind", "Hey Andrew — the network has changed."),
+        ]
+        ordered = place_unseen_last(transcript, {2})
+        self.assertEqual([m["id"] for m in ordered], [1, 3, 2])
+        messages = build_llm_messages(
+            system_prompt="You are a mind.",
+            notes="",
+            transcript=transcript,
+            unseen_ids={2},
+            human_name="Andrew",
+            wake_line=None,
+        )
+        self.assertEqual(messages[-1]["role"], "user")
+        self.assertIn("swapped your brain", messages[-1]["content"])
+        self.assertEqual(messages[-2]["role"], "assistant")
+        self.assertIn("the network has changed", messages[-2]["content"])
+        self.assertIn("hi", messages[-3]["content"])
+
+    def test_unseen_already_last_keeps_id_order(self):
+        transcript = [
+            _msg(1, "human", "hi"),
+            _msg(2, "mind", "hello"),
+            _msg(3, "human", "one more thing"),
+            _msg(4, "human", "and another"),
+        ]
+        ordered = place_unseen_last(transcript, {3, 4})
+        self.assertEqual([m["id"] for m in ordered], [1, 2, 3, 4])
 
     def test_human_message_is_timestamped_and_named(self):
         created = "2026-10-18T18:00:00+00:00"

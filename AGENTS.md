@@ -46,7 +46,7 @@ Port: `MARMOT_PORT` or `--port` (default **5050**). Data dir: `data/` (override 
 - **Images** (png/jpeg/gif/webp/bmp) are scaled to a 1024px long edge and saved as JPEG. Other files are stored as-is, up to 32MB. A message may have 8 attachments and at most 4 images. The prompt includes each file’s path.
 - **New images** on an unseen human message are attached as vision content. Older ones stay as paths; `look_at_image` opens them.
 - **The reply** is the final assistant message with no tool calls. Empty text sends nothing, unless `attach_file` queued a file. Tool-call turns are not delivered.
-- **`last_seen_message_id`** advances only after a successful model response, and only up to the latest id from the start of that tick. A message that arrives mid-tick is picked up on the next tick.
+- **`last_seen_message_id`** advances only after a successful model response, and only up to the latest id from the start of that tick. A message that arrives mid-tick is picked up on the next tick. It is placed after the reply that tick already posted, so the next prompt still ends on the new message.
 - **Missing `plan_next_wake`** waits 5 minutes. A failed tick with an unread human message retries in about 30 seconds. Delays are clamped to about 20 seconds through 24 hours.
 - **Uptime** accumulates while the loop thread is running, including sleep between wakes. It is flushed at the end of each tick and on stop. The header shows the current run. Settings shows the total.
 - **Memory** is markdown pages under `data/minds/{name}/memory/topics/`. `remember` / `read_memory` / `forget`. `MEMORY.md` is generated.
